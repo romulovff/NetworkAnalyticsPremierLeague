@@ -1,0 +1,75 @@
+---
+title: "Group Project Notebook"
+output: html_notebook
+---
+
+```{r}
+library(data.table)
+library(ggplot2)
+library(igraph)
+
+
+dt.games <- read.csv(file = "englishpremierleaguedata.csv")
+```
+
+```{r}
+l.unique.teams <- unique(dt.games$Home.Team)
+l.unique.teams
+```
+
+```{r}
+dt.games$Goal.Deficit <- dt.games$Home.Team.Goals.Scored - dt.games$Away.Team.Goals.Scored
+```
+
+```{r}
+dt.game.goal.deficit <- dt.games[, c("Home.Team", "Away.Team", "Goal.Deficit")]
+
+dt.game.goal.deficit[dt.game.goal.deficit$Goal.Deficit < 0, c("Home.Team", "Away.Team")] <- dt.game.goal.deficit[dt.game.goal.deficit$Goal.Deficit < 0, c("Away.Team", "Home.Team")]
+dt.game.goal.deficit <- within(dt.game.goal.deficit, Goal.Deficit <- Goal.Deficit * ifelse(Goal.Deficit < 0, -1, 1))
+
+dt.game.goal.deficit %>% setnames(., "Home.Team", "V1", skip_absent = T)
+dt.game.goal.deficit %>% setnames(., "Away.Team", "v2", skip_absent = T)
+dt.game.goal.deficit %>% setnames(., "Goal.Deficit", "weight", skip_absent = T)
+```
+
+```{r}
+dt.man.unt <- dt.game.goal.deficit[dt.game.goal.deficit$V1 == "MAN UTD" | dt.game.goal.deficit$v2 == "MAN UTD",]
+g.games <- graph_from_data_frame(dt.man.unt, vertices = l.unique.teams)
+summary(g.games)
+```
+
+```{r}
+png(file="ManUtd.jpeg",width=1200,height=800)
+plot(g.games)
+dev.off()
+```
+
+```{r}
+```
+
+```{r}
+```
+
+```{r}
+```
+
+```{r}
+```
+
+```{r}
+```
+
+```{r}
+```
+
+```{r}
+```
+
+```{r}
+```
+
+```{r}
+```
+
+```{r}
+```
