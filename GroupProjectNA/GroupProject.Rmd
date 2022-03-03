@@ -66,9 +66,15 @@ dev.off() # Close jpeg
 ```
 
 ```{r}
+print("Strength")
+print(strength(g.games))
+print("Betweenness")
+print(betweenness(g.games))
 ```
 
 ```{r}
+V(g.games)$centrality <- centr_degree(g.games, mode = "all")$res
+V(g.games)[[]]
 ```
 
 ```{r}
