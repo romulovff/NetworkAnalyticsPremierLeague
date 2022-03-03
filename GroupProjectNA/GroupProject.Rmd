@@ -7,47 +7,62 @@ output: html_notebook
 library(data.table)
 library(ggplot2)
 library(igraph)
+library(qgraph)
+library(dplyr)
+library(DirectedClustering)
 
-
-dt.games <- read.csv(file = "englishpremierleaguedata.csv")
+dt.games <- read.csv(file = "englishpremierleaguedata.csv") # Loading CSV
 ```
 
 ```{r}
-l.unique.teams <- unique(dt.games$Home.Team)
+l.unique.teams <- unique(dt.games$Home.Team) # Getting unique teams to create vertices of graph
 l.unique.teams
 ```
 
 ```{r}
-dt.games$Goal.Deficit <- dt.games$Home.Team.Goals.Scored - dt.games$Away.Team.Goals.Scored
+dt.games$Goal.Deficit <- dt.games$Home.Team.Goals.Scored - dt.games$Away.Team.Goals.Scored # Goal deficit/superavit for home team
 ```
 
 ```{r}
-dt.game.goal.deficit <- dt.games[, c("Home.Team", "Away.Team", "Goal.Deficit")]
+dt.game.goal.deficit <- dt.games[, c("Home.Team", "Away.Team", "Goal.Deficit")] # Select only these 3 columns
 
-dt.game.goal.deficit[dt.game.goal.deficit$Goal.Deficit < 0, c("Home.Team", "Away.Team")] <- dt.game.goal.deficit[dt.game.goal.deficit$Goal.Deficit < 0, c("Away.Team", "Home.Team")]
-dt.game.goal.deficit <- within(dt.game.goal.deficit, Goal.Deficit <- Goal.Deficit * ifelse(Goal.Deficit < 0, -1, 1))
+dt.game.goal.deficit[dt.game.goal.deficit$Goal.Deficit > 0, c("Home.Team", "Away.Team")] <- dt.game.goal.deficit[dt.game.goal.deficit$Goal.Deficit > 0, c("Away.Team", "Home.Team")] # If Goal.Deficit > 0, change Home.Team to Away.Team and vice versa. In this case we want the origin of the edges of the directed graph to be the team that lost and the destiny, the team that won. It could be used oppositely, changing to Goal.Deficit < 0.
 
+# Change columns names to create weighted directed graph
 dt.game.goal.deficit %>% setnames(., "Home.Team", "V1", skip_absent = T)
 dt.game.goal.deficit %>% setnames(., "Away.Team", "v2", skip_absent = T)
 dt.game.goal.deficit %>% setnames(., "Goal.Deficit", "weight", skip_absent = T)
+
+dt.game.goal.deficit <- within(dt.game.goal.deficit, weight <- weight * ifelse(weight < 0, -1, 1)) # If weight < 0, make it positive, since edges must all be positive. This can be done because we already swapped the values for Home.Team and Away.Team in case this value is negative
+dt.game.goal.deficit <- dt.game.goal.deficit[dt.game.goal.deficit$weight != 0,] # Removing edges with weight 0
+
+# Group datatable according to positive and negative scores for each team, so every vertex only has at most 2 edges with each other team, 1 incoming and 1 outgoing.
+dt.game.goal.deficit.grouped <- dt.game.goal.deficit %>% 
+  group_by(V1, v2) %>%
+  dplyr::summarize(weight = sum(weight)) %>% 
+  as.data.frame()
 ```
 
 ```{r}
-dt.man.unt <- dt.game.goal.deficit[dt.game.goal.deficit$V1 == "MAN UTD" | dt.game.goal.deficit$v2 == "MAN UTD",]
-g.games <- graph_from_data_frame(dt.man.unt, vertices = l.unique.teams)
+g.games <- graph_from_data_frame(dt.game.goal.deficit.grouped, vertices = l.unique.teams)
 summary(g.games)
 ```
 
 ```{r}
-png(file="ManUtd.jpeg",width=1200,height=800)
-plot(g.games)
-dev.off()
+print(paste("Global clustering coefficient:",transitivity(g.games)))
+m.games <- get.adjacency(g.games, sparse = FALSE, attr = "weight")
+
+# https://cran.r-project.org/web/packages/DirectedClustering/DirectedClustering.pdf
+ClustBCG(m.games, "directed")
 ```
 
 ```{r}
-```
+dt.man.unt <- dt.game.goal.deficit.grouped[dt.game.goal.deficit.grouped$V1 == "MAN UTD" | dt.game.goal.deficit.grouped$v2 == "MAN UTD",] # Getting rows for Manchester United
 
-```{r}
+g.man.unt <- graph_from_data_frame(dt.man.unt, vertices = l.unique.teams) # Create graph from Manchester United datatable
+jpeg("ManUnt.jpg", width = 1400, height = 1000) # Create jpeg for graph
+plot(g.man.unt) # Plot graph in jpeg
+dev.off() # Close jpeg
 ```
 
 ```{r}
